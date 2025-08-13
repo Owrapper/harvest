@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_harvest_config_form" model="ir.ui.view">
+        <field name="name">harvest.config.form</field>
+        <field name="model">harvest.config</field>
+        <field name="arch" type="xml">
+            <form string="Harvest Configuration">
+                <header>
+                    <button name="test_connection" type="object" string="Test Connection" class="btn-primary"/>
+                    <button name="sync_harvest_data" type="object" string="Sync Now" class="btn-secondary" confirm="This will sync all data from Harvest. Continue?"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="account_id" placeholder="Your Harvest Account ID"/>
+                            <field name="access_token" password="True" placeholder="Your Personal Access Token"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group>
+                            <field name="active"/>
+                            <field name="sync_days_back"/>
+                            <field name="last_sync" readonly="1"/>
+                            <field name="api_url" invisible="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Help">
+                            <group>
+                                <div>
+                                    <h3>Setup Instructions:</h3>
+                                    <ol>
+                                        <li>Go to your Harvest account settings</li>
+                                        <li>Navigate to "Developers" section</li>
+                                        <li>Create a new Personal Access Token</li>
+                                        <li>Copy your Account ID and Access Token</li>
+                                        <li>Paste them in the fields above</li>
+                                        <li>Click "Test Connection" to verify</li>
+                                        <li>Click "Sync Now" to import data</li>
+                                    </ol>
+                                </div>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    
+    <record id="view_harvest_config_tree" model="ir.ui.view">
+        <field name="name">harvest.config.tree</field>
+        <field name="model">harvest.config</field>
+        <field name="arch" type="xml">
+            <tree string="Harvest Configurations">
+                <field name="account_id"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="active"/>
+                <field name="last_sync"/>
+            </tree>
+        </field>
+    </record>
+    
+    <record id="action_harvest_config" model="ir.actions.act_window">
+        <field name="name">Configuration</field>
+        <field name="res_model">harvest.config</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Configure Harvest API Connection
+            </p>
+            <p>
+                Set up your Harvest account credentials to start syncing time tracking data.
+            </p>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_harvest_root"
+              name="Harvest"
+              sequence="50"
+              groups="harvest.group_harvest_user"
+              web_icon="harvest,static/description/icon.png"/>
+    
+    <menuitem id="menu_harvest_time_tracking"
+              name="Time Tracking"
+              parent="menu_harvest_root"
+              sequence="10"/>
+    
+    <menuitem id="menu_harvest_time_entries"
+              name="Time Entries"
+              parent="menu_harvest_time_tracking"
+              action="action_harvest_time_entry"
+              sequence="10"/>
+    
+    <menuitem id="menu_harvest_projects"
+              name="Projects"
+              parent="menu_harvest_time_tracking"
+              action="action_harvest_project"
+              sequence="20"/>
+    
+    <menuitem id="menu_harvest_users"
+              name="Users"
+              parent="menu_harvest_time_tracking"
+              action="action_harvest_user"
+              sequence="30"/>
+    
+    <menuitem id="menu_harvest_configuration"
+              name="Configuration"
+              parent="menu_harvest_root"
+              sequence="100"
+              groups="harvest.group_harvest_manager"/>
+    
+    <menuitem id="menu_harvest_config"
+              name="API Settings"
+              parent="menu_harvest_configuration"
+              action="action_harvest_config"
+              sequence="10"/>
+</odoo>

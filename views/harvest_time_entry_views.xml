@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_harvest_time_entry_form" model="ir.ui.view">
+        <field name="name">harvest.time.entry.form</field>
+        <field name="model">harvest.time.entry</field>
+        <field name="arch" type="xml">
+            <form string="Harvest Time Entry">
+                <header>
+                    <button name="create_timesheet_entries" type="object" string="Create Timesheet" 
+                            class="btn-primary" attrs="{'invisible': [('timesheet_id', '!=', False)]}"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="spent_date"/>
+                            <field name="hours" widget="float_time"/>
+                            <field name="harvest_user_id"/>
+                            <field name="harvest_project_id"/>
+                        </group>
+                        <group>
+                            <field name="harvest_id" readonly="1"/>
+                            <field name="is_locked"/>
+                            <field name="is_running"/>
+                            <field name="timesheet_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="notes"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    
+    <record id="view_harvest_time_entry_tree" model="ir.ui.view">
+        <field name="name">harvest.time.entry.tree</field>
+        <field name="model">harvest.time.entry</field>
+        <field name="arch" type="xml">
+            <tree string="Harvest Time Entries" default_order="spent_date desc">
+                <field name="spent_date"/>
+                <field name="harvest_user_id"/>
+                <field name="harvest_project_id"/>
+                <field name="hours" widget="float_time" sum="Total Hours"/>
+                <field name="notes"/>
+                <field name="timesheet_id"/>
+                <field name="is_locked" optional="hide"/>
+                <field name="is_running" optional="hide"/>
+            </tree>
+        </field>
+    </record>
+    
+    <record id="view_harvest_time_entry_search" model="ir.ui.view">
+        <field name="name">harvest.time.entry.search</field>
+        <field name="model">harvest.time.entry</field>
+        <field name="arch" type="xml">
+            <search string="Search Time Entries">
+                <field name="harvest_user_id"/>
+                <field name="harvest_project_id"/>
+                <field name="notes"/>
+                <filter name="today" string="Today" domain="[('spent_date', '=', context_today())]"/>
+                <filter name="yesterday" string="Yesterday" domain="[('spent_date', '=', (context_today() - relativedelta(days=1)))]"/>
+                <filter name="this_week" string="This Week" 
+                        domain="[('spent_date', '&gt;=', (context_today() - relativedelta(days=context_today().weekday()))), 
+                                ('spent_date', '&lt;=', context_today())]"/>
+                <filter name="last_week" string="Last Week" 
+                        domain="[('spent_date', '&gt;=', (context_today() - relativedelta(weeks=1, weekday=0))),
+                                ('spent_date', '&lt;', (context_today() - relativedelta(weekday=0)))]"/>
+                <filter name="this_month" string="This Month" 
+                        domain="[('spent_date', '&gt;=', context_today().strftime('%Y-%m-01'))]"/>
+                <separator/>
+                <filter name="has_timesheet" string="Has Timesheet" domain="[('timesheet_id', '!=', False)]"/>
+                <filter name="no_timesheet" string="No Timesheet" domain="[('timesheet_id', '=', False)]"/>
+                <separator/>
+                <filter name="locked" string="Locked" domain="[('is_locked', '=', True)]"/>
+                <filter name="running" string="Running" domain="[('is_running', '=', True)]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_by_date" string="Date" context="{'group_by': 'spent_date:day'}"/>
+                    <filter name="group_by_user" string="User" context="{'group_by': 'harvest_user_id'}"/>
+                    <filter name="group_by_project" string="Project" context="{'group_by': 'harvest_project_id'}"/>
+                    <filter name="group_by_month" string="Month" context="{'group_by': 'spent_date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    
+    <record id="action_harvest_time_entry" model="ir.actions.act_window">
+        <field name="name">Time Entries</field>
+        <field name="res_model">harvest.time.entry</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_harvest_time_entry_search"/>
+        <field name="context">{'search_default_this_month': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No time entries found
+            </p>
+            <p>
+                Sync your Harvest data to see time entries here.
+            </p>
+        </field>
+    </record>
+    
+    <record id="action_harvest_time_entry_to_timesheet" model="ir.actions.server">
+        <field name="name">Create Timesheets</field>
+        <field name="model_id" ref="model_harvest_time_entry"/>
+        <field name="binding_model_id" ref="model_harvest_time_entry"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">
+if records:
+    action = records.create_timesheet_entries()
+        </field>
+    </record>
+</odoo>

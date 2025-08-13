@@ -1,0 +1,9 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_harvest_config_user,harvest.config.user,model_harvest_config,group_harvest_user,1,0,0,0
+access_harvest_config_manager,harvest.config.manager,model_harvest_config,group_harvest_manager,1,1,1,1
+access_harvest_user_user,harvest.user.user,model_harvest_user,group_harvest_user,1,0,0,0
+access_harvest_user_manager,harvest.user.manager,model_harvest_user,group_harvest_manager,1,1,1,1
+access_harvest_project_user,harvest.project.user,model_harvest_project,group_harvest_user,1,0,0,0
+access_harvest_project_manager,harvest.project.manager,model_harvest_project,group_harvest_manager,1,1,1,1
+access_harvest_time_entry_user,harvest.time.entry.user,model_harvest_time_entry,group_harvest_user,1,0,0,0
+access_harvest_time_entry_manager,harvest.time.entry.manager,model_harvest_time_entry,group_harvest_manager,1,1,1,1
