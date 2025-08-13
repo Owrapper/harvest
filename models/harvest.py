@@ -37,7 +37,7 @@ class HarvestConfig(models.Model):
         'Can Access Projects', default=False, readonly=True)
     can_access_all_time = fields.Boolean(
         'Can Access All Time Entries', default=False, readonly=True)
-    current_user_id = fields.Integer('Current Harvest User ID', readonly=True)
+    current_user_id = fields.Char('Current Harvest User ID', readonly=True)
 
     @api.constrains('active')
     def _check_single_active(self):
@@ -99,7 +99,7 @@ class HarvestConfig(models.Model):
             )
             if response.status_code == 200:
                 user_data = response.json()
-                access_info['current_user_id'] = user_data.get('id')
+                access_info['current_user_id'] = str(user_data.get('id'))
         except:
             pass
 
@@ -224,10 +224,10 @@ class HarvestConfig(models.Model):
     def _create_or_update_user(self, harvest_user):
         HarvestUser = self.env['harvest.user']
         existing = HarvestUser.search(
-            [('harvest_id', '=', harvest_user['id'])], limit=1)
+            [('harvest_id', '=', str(harvest_user['id']))], limit=1)
 
         values = {
-            'harvest_id': harvest_user['id'],
+            'harvest_id': str(harvest_user['id']),
             'name': f"{harvest_user.get('first_name', '')} {harvest_user.get('last_name', '')}".strip(),
             'email': harvest_user.get('email'),
             'is_active': harvest_user.get('is_active', False),
@@ -268,10 +268,10 @@ class HarvestConfig(models.Model):
     def _create_or_update_project(self, harvest_project):
         HarvestProject = self.env['harvest.project']
         existing = HarvestProject.search(
-            [('harvest_id', '=', harvest_project['id'])], limit=1)
+            [('harvest_id', '=', str(harvest_project['id']))], limit=1)
 
         values = {
-            'harvest_id': harvest_project['id'],
+            'harvest_id': str(harvest_project['id']),
             'name': harvest_project.get('name'),
             'code': harvest_project.get('code'),
             'is_active': harvest_project.get('is_active', False),
@@ -389,7 +389,7 @@ class HarvestConfig(models.Model):
     def _sync_user_projects(self):
         """Sync projects that the current user has time entries for"""
         try:
-            # Get unique project IDs from user's time entries
+            # Get unique project info from user's time entries
             response = requests.get(
                 f'{self.api_url}time_entries',
                 headers=self._get_headers(),
@@ -402,14 +402,20 @@ class HarvestConfig(models.Model):
 
             if response.status_code == 200:
                 data = response.json()
-                project_ids = set()
+                projects_info = {}
+
+                # Collect project info from time entries
                 for entry in data.get('time_entries', []):
                     if entry.get('project'):
-                        project_ids.add(entry['project']['id'])
+                        project = entry['project']
+                        project_id = str(project['id'])
+                        if project_id not in projects_info:
+                            projects_info[project_id] = project
 
-                # Fetch and sync each project
-                for project_id in project_ids:
+                # Try to fetch full project details, fall back to proxy if needed
+                for project_id, project_data in projects_info.items():
                     try:
+                        # Try to get full project details
                         proj_response = requests.get(
                             f'{self.api_url}projects/{project_id}',
                             headers=self._get_headers(),
@@ -418,23 +424,75 @@ class HarvestConfig(models.Model):
                         if proj_response.status_code == 200:
                             self._create_or_update_project(
                                 proj_response.json())
+                        else:
+                            # Create proxy project with limited info
+                            self._create_or_update_proxy_project(project_data)
                     except:
-                        pass
+                        # Create proxy project with limited info
+                        self._create_or_update_proxy_project(project_data)
         except:
             pass
+
+    def _create_or_update_proxy_project(self, project_data):
+        """Create or update a project with limited information from time entries"""
+        HarvestProject = self.env['harvest.project']
+        existing = HarvestProject.search(
+            [('harvest_id', '=', str(project_data['id']))], limit=1)
+
+        values = {
+            'harvest_id': str(project_data['id']),
+            'name': project_data.get('name', f"Project {project_data['id']}"),
+            'code': project_data.get('code', ''),
+            'is_active': True,
+            'config_id': self.id,
+        }
+
+        if existing:
+            # Only update if we have better info
+            if project_data.get('name') and project_data['name'] != f"Project {project_data['id']}":
+                existing.write({'name': project_data['name']})
+            if project_data.get('code'):
+                existing.write({'code': project_data['code']})
+        else:
+            HarvestProject.create(values)
 
     def _create_or_update_time_entry(self, harvest_entry):
         HarvestTimeEntry = self.env['harvest.time.entry']
         existing = HarvestTimeEntry.search(
-            [('harvest_id', '=', harvest_entry['id'])], limit=1)
+            [('harvest_id', '=', str(harvest_entry['id']))], limit=1)
 
-        harvest_user = self.env['harvest.user'].search(
-            [('harvest_id', '=', harvest_entry['user']['id'])], limit=1)
-        harvest_project = self.env['harvest.project'].search(
-            [('harvest_id', '=', harvest_entry['project']['id'])], limit=1)
+        # Handle user
+        harvest_user = False
+        if harvest_entry.get('user'):
+            harvest_user = self.env['harvest.user'].search(
+                [('harvest_id', '=', str(harvest_entry['user']['id']))], limit=1)
+            if not harvest_user:
+                # Create a proxy user if doesn't exist
+                harvest_user = self.env['harvest.user'].create({
+                    'harvest_id': str(harvest_entry['user']['id']),
+                    'name': harvest_entry['user'].get('name', 'Unknown User'),
+                    'config_id': self.id,
+                })
+
+        # Handle project - create proxy if doesn't exist
+        harvest_project = False
+        if harvest_entry.get('project'):
+            project_data = harvest_entry['project']
+            harvest_project = self.env['harvest.project'].search(
+                [('harvest_id', '=', str(project_data['id']))], limit=1)
+
+            if not harvest_project:
+                # Create a proxy project with the limited info we have
+                harvest_project = self.env['harvest.project'].create({
+                    'harvest_id': str(project_data['id']),
+                    'name': project_data.get('name', f"Project {project_data['id']}"),
+                    'code': project_data.get('code', ''),
+                    'is_active': True,
+                    'config_id': self.id,
+                })
 
         values = {
-            'harvest_id': harvest_entry['id'],
+            'harvest_id': str(harvest_entry['id']),
             'spent_date': harvest_entry.get('spent_date'),
             'hours': harvest_entry.get('hours', 0.0),
             'notes': harvest_entry.get('notes'),
@@ -455,7 +513,7 @@ class HarvestUser(models.Model):
     _name = 'harvest.user'
     _description = 'Harvest User'
 
-    harvest_id = fields.Integer('Harvest ID', required=True, index=True)
+    harvest_id = fields.Char('Harvest ID', required=True, index=True)
     name = fields.Char('Name', required=True)
     email = fields.Char('Email')
     employee_id = fields.Many2one('hr.employee', string='Employee')
@@ -473,7 +531,7 @@ class HarvestProject(models.Model):
     _name = 'harvest.project'
     _description = 'Harvest Project'
 
-    harvest_id = fields.Integer('Harvest ID', required=True, index=True)
+    harvest_id = fields.Char('Harvest ID', required=True, index=True)
     name = fields.Char('Name', required=True)
     code = fields.Char('Code')
     project_id = fields.Many2one('project.project', string='Odoo Project')
@@ -506,7 +564,7 @@ class HarvestTimeEntry(models.Model):
     _description = 'Harvest Time Entry'
     _order = 'spent_date desc'
 
-    harvest_id = fields.Integer('Harvest ID', required=True, index=True)
+    harvest_id = fields.Char('Harvest ID', required=True, index=True)
     spent_date = fields.Date('Date', required=True)
     hours = fields.Float('Hours', required=True)
     notes = fields.Text('Notes')
@@ -515,7 +573,7 @@ class HarvestTimeEntry(models.Model):
     harvest_user_id = fields.Many2one(
         'harvest.user', string='Harvest User', required=True)
     harvest_project_id = fields.Many2one(
-        'harvest.project', string='Harvest Project', required=True)
+        'harvest.project', string='Harvest Project', required=False)
     timesheet_id = fields.Many2one(
         'account.analytic.line', string='Timesheet Entry')
     config_id = fields.Many2one(

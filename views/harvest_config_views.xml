@@ -63,20 +63,39 @@
                     </group>
                     <notebook>
                         <page string="Help">
-                            <group>
-                                <div>
-                                    <h3>Setup Instructions:</h3>
-                                    <ol>
-                                        <li>Go to your Harvest account settings</li>
-                                        <li>Navigate to "Developers" section</li>
-                                        <li>Create a new Personal Access Token</li>
-                                        <li>Copy your Account ID and Access Token</li>
-                                        <li>Paste them in the fields above</li>
-                                        <li>Click "Test Connection" to verify</li>
-                                        <li>Click "Sync Now" to import data</li>
-                                    </ol>
-                                </div>
-                            </group>
+                            <div style="padding: 20px;">
+                                <h3>Setup Instructions:</h3>
+                                <ol>
+                                    <li>Go to your Harvest account settings</li>
+                                    <li>Navigate to "Developers" section</li>
+                                    <li>Create a new Personal Access Token</li>
+                                    <li>Copy your Account ID and Access Token</li>
+                                    <li>Paste them in the fields above</li>
+                                    <li>Click "Test Connection" to verify</li>
+                                    <li>Click "Check Access Levels" to detect your API permissions</li>
+                                    <li>Click "Sync Now" to import data based on your access level</li>
+                                </ol>
+                                <br/>
+                                <h3>Sync Levels:</h3>
+                                <ul>
+                                    <li>
+                                        <strong>My Time Entries Only:</strong> Syncs only your personal time entries and related projects</li>
+                                    <li>
+                                        <strong>All Time Entries:</strong> Syncs all time entries in your organization (requires broader API access)</li>
+                                    <li>
+                                        <strong>Full Sync:</strong> Syncs users, projects, and all time entries (requires admin API access)</li>
+                                </ul>
+                                <br/>
+                                <h3>Access Indicators:</h3>
+                                <ul>
+                                    <li>
+                                        <strong>Can Access Users:</strong> Whether your token can fetch user data</li>
+                                    <li>
+                                        <strong>Can Access Projects:</strong> Whether your token can fetch project details</li>
+                                    <li>
+                                        <strong>Can Access All Time:</strong> Whether your token can fetch all time entries</li>
+                                </ul>
+                            </div>
                         </page>
                     </notebook>
                 </sheet>
