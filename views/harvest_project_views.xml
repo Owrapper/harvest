@@ -1,75 +1,102 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="view_harvest_project_form" model="ir.ui.view">
+    <record id="view_harvest_project_form"
+        model="ir.ui.view">
         <field name="name">harvest.project.form</field>
         <field name="model">harvest.project</field>
-        <field name="arch" type="xml">
+        <field name="arch"
+            type="xml">
             <form string="Harvest Project">
                 <header>
-                    <button name="action_view_time_entries" type="object" string="View Time Entries" class="btn-primary"/>
+                    <button name="action_view_time_entries"
+                        type="object"
+                        string="View Time Entries"
+                        class="btn-primary"/>
                 </header>
                 <sheet>
                     <group>
                         <group>
                             <field name="name"/>
                             <field name="code"/>
-                            <field name="harvest_id" readonly="1"/>
-                            <field name="project_id" domain="[('company_id', '=', company_id)]"/>
+                            <field name="harvest_id"
+                                readonly="1"/>
+                            <field name="project_id"/>
                         </group>
                         <group>
                             <field name="is_active"/>
                             <field name="budget"/>
-                            <field name="config_id" readonly="1"/>
-                            <field name="company_id" invisible="1"/>
+                            <field name="config_id"
+                                readonly="1"/>
                         </group>
                     </group>
                 </sheet>
             </form>
         </field>
     </record>
-    
-    <record id="view_harvest_project_tree" model="ir.ui.view">
+
+    <record id="view_harvest_project_tree"
+        model="ir.ui.view">
         <field name="name">harvest.project.tree</field>
         <field name="model">harvest.project</field>
-        <field name="arch" type="xml">
+        <field name="arch"
+            type="xml">
             <tree string="Harvest Projects">
                 <field name="name"/>
                 <field name="code"/>
                 <field name="project_id"/>
                 <field name="is_active"/>
-                <field name="budget" sum="Total Budget"/>
+                <field name="budget"
+                    sum="Total Budget"/>
             </tree>
         </field>
     </record>
-    
-    <record id="view_harvest_project_search" model="ir.ui.view">
+
+    <record id="view_harvest_project_search"
+        model="ir.ui.view">
         <field name="name">harvest.project.search</field>
         <field name="model">harvest.project</field>
-        <field name="arch" type="xml">
+        <field name="arch"
+            type="xml">
             <search string="Search Harvest Projects">
                 <field name="name"/>
                 <field name="code"/>
                 <field name="project_id"/>
-                <filter name="active" string="Active" domain="[('is_active', '=', True)]"/>
-                <filter name="inactive" string="Inactive" domain="[('is_active', '=', False)]"/>
+                <filter name="active"
+                    string="Active"
+                    domain="[('is_active', '=', True)]"/>
+                <filter name="inactive"
+                    string="Inactive"
+                    domain="[('is_active', '=', False)]"/>
                 <separator/>
-                <filter name="mapped" string="Mapped to Odoo" domain="[('project_id', '!=', False)]"/>
-                <filter name="unmapped" string="Not Mapped" domain="[('project_id', '=', False)]"/>
-                <group expand="0" string="Group By">
-                    <filter name="group_by_active" string="Active Status" context="{'group_by': 'is_active'}"/>
-                    <filter name="group_by_project" string="Odoo Project" context="{'group_by': 'project_id'}"/>
+                <filter name="mapped"
+                    string="Mapped to Odoo"
+                    domain="[('project_id', '!=', False)]"/>
+                <filter name="unmapped"
+                    string="Not Mapped"
+                    domain="[('project_id', '=', False)]"/>
+                <group expand="0"
+                    string="Group By">
+                    <filter name="group_by_active"
+                        string="Active Status"
+                        context="{'group_by': 'is_active'}"/>
+                    <filter name="group_by_project"
+                        string="Odoo Project"
+                        context="{'group_by': 'project_id'}"/>
                 </group>
             </search>
         </field>
     </record>
-    
-    <record id="action_harvest_project" model="ir.actions.act_window">
+
+    <record id="action_harvest_project"
+        model="ir.actions.act_window">
         <field name="name">Projects</field>
         <field name="res_model">harvest.project</field>
         <field name="view_mode">tree,form</field>
-        <field name="search_view_id" ref="view_harvest_project_search"/>
+        <field name="search_view_id"
+            ref="view_harvest_project_search"/>
         <field name="context">{'search_default_active': 1}</field>
-        <field name="help" type="html">
+        <field name="help"
+            type="html">
             <p class="o_view_nocontent_smiling_face">
                 No Harvest projects found
             </p>
@@ -78,34 +105,40 @@
             </p>
         </field>
     </record>
-    
-    <record id="view_harvest_user_form" model="ir.ui.view">
+
+    <record id="view_harvest_user_form"
+        model="ir.ui.view">
         <field name="name">harvest.user.form</field>
         <field name="model">harvest.user</field>
-        <field name="arch" type="xml">
+        <field name="arch"
+            type="xml">
             <form string="Harvest User">
                 <sheet>
                     <group>
                         <group>
                             <field name="name"/>
                             <field name="email"/>
-                            <field name="harvest_id" readonly="1"/>
+                            <field name="harvest_id"
+                                readonly="1"/>
                         </group>
                         <group>
                             <field name="employee_id"/>
                             <field name="is_active"/>
-                            <field name="config_id" readonly="1"/>
+                            <field name="config_id"
+                                readonly="1"/>
                         </group>
                     </group>
                 </sheet>
             </form>
         </field>
     </record>
-    
-    <record id="view_harvest_user_tree" model="ir.ui.view">
+
+    <record id="view_harvest_user_tree"
+        model="ir.ui.view">
         <field name="name">harvest.user.tree</field>
         <field name="model">harvest.user</field>
-        <field name="arch" type="xml">
+        <field name="arch"
+            type="xml">
             <tree string="Harvest Users">
                 <field name="name"/>
                 <field name="email"/>
@@ -114,12 +147,14 @@
             </tree>
         </field>
     </record>
-    
-    <record id="action_harvest_user" model="ir.actions.act_window">
+
+    <record id="action_harvest_user"
+        model="ir.actions.act_window">
         <field name="name">Users</field>
         <field name="res_model">harvest.user</field>
         <field name="view_mode">tree,form</field>
-        <field name="help" type="html">
+        <field name="help"
+            type="html">
             <p class="o_view_nocontent_smiling_face">
                 No Harvest users found
             </p>

@@ -24,6 +24,21 @@ class HarvestConfig(models.Model):
     company_id = fields.Many2one(
         'res.company', string='Company', required=True, default=lambda self: self.env.company)
 
+    # Sync level configuration
+    sync_level = fields.Selection([
+        ('my_time', 'My Time Entries Only'),
+        ('all_time', 'All Time Entries'),
+        ('full', 'Full Sync (Users, Projects, Time)')
+    ], string='Sync Level', default='my_time', required=True,
+        help="Choose what data to sync based on your API permissions")
+    can_access_users = fields.Boolean(
+        'Can Access Users', default=False, readonly=True)
+    can_access_projects = fields.Boolean(
+        'Can Access Projects', default=False, readonly=True)
+    can_access_all_time = fields.Boolean(
+        'Can Access All Time Entries', default=False, readonly=True)
+    current_user_id = fields.Integer('Current Harvest User ID', readonly=True)
+
     @api.constrains('active')
     def _check_single_active(self):
         if self.active:
@@ -64,12 +79,110 @@ class HarvestConfig(models.Model):
         except Exception as e:
             raise UserError(_('Connection failed: %s') % str(e))
 
+    def check_access_levels(self):
+        """Check what API endpoints are accessible and update access level fields"""
+        self.ensure_one()
+
+        access_info = {
+            'can_access_users': False,
+            'can_access_projects': False,
+            'can_access_all_time': False,
+            'current_user_id': False
+        }
+
+        # Check access to current user (always available)
+        try:
+            response = requests.get(
+                f'{self.api_url}users/me',
+                headers=self._get_headers(),
+                timeout=10
+            )
+            if response.status_code == 200:
+                user_data = response.json()
+                access_info['current_user_id'] = user_data.get('id')
+        except:
+            pass
+
+        # Check access to all users
+        try:
+            response = requests.get(
+                f'{self.api_url}users',
+                headers=self._get_headers(),
+                params={'per_page': 1},
+                timeout=10
+            )
+            if response.status_code == 200:
+                access_info['can_access_users'] = True
+        except:
+            pass
+
+        # Check access to projects
+        try:
+            response = requests.get(
+                f'{self.api_url}projects',
+                headers=self._get_headers(),
+                params={'per_page': 1},
+                timeout=10
+            )
+            if response.status_code == 200:
+                access_info['can_access_projects'] = True
+        except:
+            pass
+
+        # Check access to all time entries
+        try:
+            response = requests.get(
+                f'{self.api_url}time_entries',
+                headers=self._get_headers(),
+                params={'per_page': 1},
+                timeout=10
+            )
+            if response.status_code == 200:
+                access_info['can_access_all_time'] = True
+        except:
+            pass
+
+        # Update fields
+        self.sudo().write(access_info)
+
+        # Auto-adjust sync level based on permissions
+        if not access_info['can_access_users'] and not access_info['can_access_projects']:
+            self.sync_level = 'my_time'
+        elif not access_info['can_access_users']:
+            self.sync_level = 'all_time'
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Access Levels Checked'),
+                'message': _('API permissions have been verified and sync level adjusted.'),
+                'type': 'info',
+                'sticky': False,
+            }
+        }
+
     def sync_harvest_data(self):
         self.ensure_one()
         try:
-            self.sync_users()
-            self.sync_projects()
-            self.sync_time_entries()
+            # Check access levels first if not already done
+            if not self.current_user_id:
+                self.check_access_levels()
+
+            # Sync based on selected level
+            if self.sync_level == 'full':
+                if self.can_access_users:
+                    self.sync_users()
+                if self.can_access_projects:
+                    self.sync_projects()
+                self.sync_time_entries()
+            elif self.sync_level == 'all_time':
+                if self.can_access_projects:
+                    self.sync_projects()
+                self.sync_time_entries()
+            else:  # my_time
+                self.sync_my_time_entries()
+
             self.sudo().write({'last_sync': fields.Datetime.now()})
             self.env.cr.commit()
             return {
@@ -102,7 +215,8 @@ class HarvestConfig(models.Model):
             else:
                 raise UserError(_('Failed to fetch users: %s') % response.text)
         except requests.RequestException as e:
-            raise UserError(_('Network error while syncing users: %s') % str(e))
+            raise UserError(
+                _('Network error while syncing users: %s') % str(e))
         except Exception as e:
             _logger.error(f'Failed to sync users: {str(e)}')
             raise
@@ -142,9 +256,11 @@ class HarvestConfig(models.Model):
                 for project in projects_data.get('projects', []):
                     self._create_or_update_project(project)
             else:
-                raise UserError(_('Failed to fetch projects: %s') % response.text)
+                raise UserError(_('Failed to fetch projects: %s') %
+                                response.text)
         except requests.RequestException as e:
-            raise UserError(_('Network error while syncing projects: %s') % str(e))
+            raise UserError(
+                _('Network error while syncing projects: %s') % str(e))
         except Exception as e:
             _logger.error(f'Failed to sync projects: {str(e)}')
             raise
@@ -202,6 +318,110 @@ class HarvestConfig(models.Model):
 
         except Exception as e:
             _logger.error(f'Failed to sync time entries: {str(e)}')
+
+    def sync_my_time_entries(self):
+        """Sync only the current user's time entries"""
+        try:
+            if not self.current_user_id:
+                raise UserError(
+                    _('Current user ID not found. Please check access levels first.'))
+
+            date_from = fields.Date.today() - timedelta(days=self.sync_days_back)
+            date_to = fields.Date.today()
+
+            # First, ensure we have the current user in our database
+            self._ensure_current_user()
+
+            # Sync projects that the user has time entries for
+            self._sync_user_projects()
+
+            page = 1
+            while True:
+                response = requests.get(
+                    f'{self.api_url}time_entries',
+                    headers=self._get_headers(),
+                    params={
+                        'user_id': self.current_user_id,
+                        'from': date_from.strftime('%Y-%m-%d'),
+                        'to': date_to.strftime('%Y-%m-%d'),
+                        'page': page,
+                        'per_page': 100
+                    },
+                    timeout=30
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    for entry in data.get('time_entries', []):
+                        self._create_or_update_time_entry(entry)
+
+                    if page >= data.get('total_pages', 1):
+                        break
+                    page += 1
+                else:
+                    raise UserError(
+                        _('Failed to fetch time entries: %s') % response.text)
+
+        except requests.RequestException as e:
+            raise UserError(
+                _('Network error while syncing time entries: %s') % str(e))
+        except Exception as e:
+            _logger.error(f'Failed to sync my time entries: {str(e)}')
+            raise
+
+    def _ensure_current_user(self):
+        """Ensure the current Harvest user exists in our database"""
+        if not self.current_user_id:
+            return
+
+        try:
+            response = requests.get(
+                f'{self.api_url}users/me',
+                headers=self._get_headers(),
+                timeout=10
+            )
+            if response.status_code == 200:
+                user_data = response.json()
+                self._create_or_update_user(user_data)
+        except:
+            pass
+
+    def _sync_user_projects(self):
+        """Sync projects that the current user has time entries for"""
+        try:
+            # Get unique project IDs from user's time entries
+            response = requests.get(
+                f'{self.api_url}time_entries',
+                headers=self._get_headers(),
+                params={
+                    'user_id': self.current_user_id,
+                    'per_page': 100
+                },
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                project_ids = set()
+                for entry in data.get('time_entries', []):
+                    if entry.get('project'):
+                        project_ids.add(entry['project']['id'])
+
+                # Fetch and sync each project
+                for project_id in project_ids:
+                    try:
+                        proj_response = requests.get(
+                            f'{self.api_url}projects/{project_id}',
+                            headers=self._get_headers(),
+                            timeout=10
+                        )
+                        if proj_response.status_code == 200:
+                            self._create_or_update_project(
+                                proj_response.json())
+                    except:
+                        pass
+        except:
+            pass
 
     def _create_or_update_time_entry(self, harvest_entry):
         HarvestTimeEntry = self.env['harvest.time.entry']
