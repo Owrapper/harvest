@@ -22,7 +22,6 @@
         'views/harvest_config_views.xml',
         'views/harvest_time_entry_views.xml',
         'views/harvest_project_views.xml',
-        'views/sale_order_views.xml',
         'views/harvest_menu.xml',
         'wizard/harvest_timesheet_wizard_views.xml',
         'data/ir_cron.xml',

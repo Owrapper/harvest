@@ -20,6 +20,9 @@ class HarvestConfig(models.Model):
     last_sync = fields.Datetime('Last Synchronization')
     sync_days_back = fields.Integer(
         'Days to Sync Back', default=30, help="Number of days to sync retroactively")
+    sync_all_dates = fields.Boolean(
+        string='Sync All Dates', default=False,
+        help="If checked, syncs all time entries regardless of date (ignores 'Days to Sync Back')")
     active = fields.Boolean('Active', default=True)
     company_id = fields.Many2one(
         'res.company', string='Company', required=True, default=lambda self: self.env.company)
@@ -286,20 +289,24 @@ class HarvestConfig(models.Model):
 
     def sync_time_entries(self):
         try:
-            date_from = fields.Date.today() - timedelta(days=self.sync_days_back)
-            date_to = fields.Date.today()
+            # Build params conditionally based on sync_all_dates setting
+            params = {'page': 1, 'per_page': 100}
+
+            if not self.sync_all_dates:
+                date_from = fields.Date.today() - timedelta(days=self.sync_days_back)
+                date_to = fields.Date.today()
+                params.update({
+                    'from': date_from.strftime('%Y-%m-%d'),
+                    'to': date_to.strftime('%Y-%m-%d'),
+                })
 
             page = 1
             while True:
+                params['page'] = page
                 response = requests.get(
                     f'{self.api_url}time_entries',
                     headers=self._get_headers(),
-                    params={
-                        'from': date_from.strftime('%Y-%m-%d'),
-                        'to': date_to.strftime('%Y-%m-%d'),
-                        'page': page,
-                        'per_page': 100
-                    },
+                    params=params,
                     timeout=30
                 )
 
@@ -326,8 +333,20 @@ class HarvestConfig(models.Model):
                 raise UserError(
                     _('Current user ID not found. Please check access levels first.'))
 
-            date_from = fields.Date.today() - timedelta(days=self.sync_days_back)
-            date_to = fields.Date.today()
+            # Build params conditionally
+            params = {
+                'user_id': self.current_user_id,
+                'page': 1,
+                'per_page': 100
+            }
+
+            if not self.sync_all_dates:
+                date_from = fields.Date.today() - timedelta(days=self.sync_days_back)
+                date_to = fields.Date.today()
+                params.update({
+                    'from': date_from.strftime('%Y-%m-%d'),
+                    'to': date_to.strftime('%Y-%m-%d'),
+                })
 
             # First, ensure we have the current user in our database
             self._ensure_current_user()
@@ -337,16 +356,11 @@ class HarvestConfig(models.Model):
 
             page = 1
             while True:
+                params['page'] = page
                 response = requests.get(
                     f'{self.api_url}time_entries',
                     headers=self._get_headers(),
-                    params={
-                        'user_id': self.current_user_id,
-                        'from': date_from.strftime('%Y-%m-%d'),
-                        'to': date_to.strftime('%Y-%m-%d'),
-                        'page': page,
-                        'per_page': 100
-                    },
+                    params=params,
                     timeout=30
                 )
 
@@ -508,6 +522,24 @@ class HarvestConfig(models.Model):
         else:
             HarvestTimeEntry.create(values)
 
+    @api.model
+    def _cron_sync_harvest_data(self):
+        """Cron job to automatically sync Harvest data for all active configurations"""
+        active_configs = self.search([('active', '=', True)])
+
+        for config in active_configs:
+            try:
+                _logger.info(
+                    f'Starting scheduled Harvest sync for config: {config.account_id}')
+                config.sync_harvest_data()
+                _logger.info(
+                    f'Completed scheduled Harvest sync for config: {config.account_id}')
+            except Exception as e:
+                _logger.error(
+                    f'Failed scheduled Harvest sync for config {config.account_id}: {str(e)}')
+
+        return True
+
 
 class HarvestUser(models.Model):
     _name = 'harvest.user'
@@ -588,11 +620,11 @@ class HarvestTimeEntry(models.Model):
         """Launch wizard for timesheet creation"""
         # Get entries that can create timesheets
         eligible_entries = self.filtered(
-            lambda e: not e.timesheet_id 
-            and e.harvest_user_id.employee_id 
+            lambda e: not e.timesheet_id
+            and e.harvest_user_id.employee_id
             and e.harvest_project_id.project_id
         )
-        
+
         if not eligible_entries:
             return {
                 'type': 'ir.actions.client',
@@ -604,12 +636,12 @@ class HarvestTimeEntry(models.Model):
                     'sticky': False,
                 }
             }
-        
+
         # Create wizard with selected entries
         wizard = self.env['harvest.timesheet.wizard'].create({
             'harvest_entry_ids': [(6, 0, eligible_entries.ids)]
         })
-        
+
         return {
             'type': 'ir.actions.act_window',
             'name': _('Create Timesheets'),
