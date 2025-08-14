@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Wizard Form View -->
+    <record id="view_harvest_timesheet_wizard_form"
+        model="ir.ui.view">
+        <field name="name">harvest.timesheet.wizard.form</field>
+        <field name="model">harvest.timesheet.wizard</field>
+        <field name="arch"
+            type="xml">
+            <form string="Create Timesheets">
+                <div class="o_title">
+                    <h1>Create Timesheets from Harvest</h1>
+                    <p>Create <field name="entry_count"
+                        readonly="1"/>
+ timesheet entries from selected Harvest data.</p>
+                </div>
+
+                <group>
+                    <group string="Assignment Settings">
+                        <field name="assignment_mode"
+                            widget="radio"/>
+                        <field name="default_task_id"
+                            attrs="{'invisible': [('assignment_mode', '!=', 'manual')], 'required': [('assignment_mode', '=', 'manual')]}"/>
+                        <field name="default_so_line_id"
+                            attrs="{'invisible': [('assignment_mode', '!=', 'manual')]}"/>
+                    </group>
+                    <group string="Info">
+                        <div attrs="{'invisible': [('assignment_mode', '!=', 'auto')]}">
+                            <p>
+                                <strong>Auto Mode:</strong>
+                            </p>
+                            <ul>
+                                <li>Tasks: First active task per project</li>
+                                <li>Sales Orders: Most recent active order per project</li>
+                            </ul>
+                        </div>
+                        <div attrs="{'invisible': [('assignment_mode', '!=', 'manual')]}">
+                            <p>
+                                <strong>Manual Mode:</strong>
+                            </p>
+                            <ul style="width: 100%">
+                                <li>All entries will use the settings above</li>
+                                <li>Leave fields empty to skip assignment</li>
+                            </ul>
+                        </div>
+                    </group>
+                </group>
+
+                <footer>
+                    <button name="action_create_timesheets"
+                        type="object"
+                        string="Create Timesheets"
+                        class="btn-primary"/>
+                    <button string="Cancel"
+                        class="btn-secondary"
+                        special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

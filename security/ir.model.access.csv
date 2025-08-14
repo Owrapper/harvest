@@ -7,3 +7,5 @@ access_harvest_project_user,harvest.project.user,model_harvest_project,group_har
 access_harvest_project_manager,harvest.project.manager,model_harvest_project,group_harvest_manager,1,1,1,1
 access_harvest_time_entry_user,harvest.time.entry.user,model_harvest_time_entry,group_harvest_user,1,0,0,0
 access_harvest_time_entry_manager,harvest.time.entry.manager,model_harvest_time_entry,group_harvest_manager,1,1,1,1
+access_harvest_timesheet_wizard_user,harvest.timesheet.wizard.user,model_harvest_timesheet_wizard,group_harvest_user,1,1,1,1
+access_harvest_timesheet_wizard_manager,harvest.timesheet.wizard.manager,model_harvest_timesheet_wizard,group_harvest_manager,1,1,1,1

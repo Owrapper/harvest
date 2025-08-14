@@ -585,33 +585,15 @@ class HarvestTimeEntry(models.Model):
     ]
 
     def create_timesheet_entries(self):
-        created_count = 0
-        for entry in self:
-            if not entry.timesheet_id and entry.harvest_user_id.employee_id and entry.harvest_project_id.project_id:
-                timesheet_vals = {
-                    'name': entry.notes or '/',
-                    'project_id': entry.harvest_project_id.project_id.id,
-                    'employee_id': entry.harvest_user_id.employee_id.id,
-                    'date': entry.spent_date,
-                    'unit_amount': entry.hours,
-                }
-                timesheet = self.env['account.analytic.line'].create(
-                    timesheet_vals)
-                entry.timesheet_id = timesheet.id
-                created_count += 1
-
-        if created_count:
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': _('Success'),
-                    'message': _('%d timesheet entries created.') % created_count,
-                    'type': 'success',
-                    'sticky': False,
-                }
-            }
-        else:
+        """Launch wizard for timesheet creation"""
+        # Get entries that can create timesheets
+        eligible_entries = self.filtered(
+            lambda e: not e.timesheet_id 
+            and e.harvest_user_id.employee_id 
+            and e.harvest_project_id.project_id
+        )
+        
+        if not eligible_entries:
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -622,3 +604,18 @@ class HarvestTimeEntry(models.Model):
                     'sticky': False,
                 }
             }
+        
+        # Create wizard with selected entries
+        wizard = self.env['harvest.timesheet.wizard'].create({
+            'harvest_entry_ids': [(6, 0, eligible_entries.ids)]
+        })
+        
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Create Timesheets'),
+            'res_model': 'harvest.timesheet.wizard',
+            'res_id': wizard.id,
+            'view_mode': 'form',
+            'target': 'new',
+            'context': self.env.context,
+        }

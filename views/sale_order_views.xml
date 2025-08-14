@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <!-- Add buttons and fields to Sale Order form -->
+    <record id="view_order_form_inherit_harvest" model="ir.ui.view">
+        <field name="name">sale.order.form.inherit.harvest</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            
+            <!-- Add buttons in header -->
+            <xpath expr="//header" position="inside">
+                <button name="action_update_delivered_qty_from_timesheets" 
+                        string="Update Delivered Qty" 
+                        type="object"
+                        class="btn-secondary"
+                        attrs="{'invisible': [('state', 'not in', ['sale', 'done'])]}"
+                        help="Update delivered quantities from timesheet hours (8 hours = 1 day)"/>
+                <button name="action_create_invoice_from_timesheets" 
+                        string="Invoice Timesheets" 
+                        type="object"
+                        class="btn-primary"
+                        attrs="{'invisible': [('state', 'not in', ['sale', 'done'])]}"
+                        help="Create invoice from timesheet hours converted to days"/>
+            </xpath>
+            
+            <!-- Add timesheet summary in a new group -->
+            <xpath expr="//sheet/notebook" position="before">
+                <group string="Timesheet Summary" attrs="{'invisible': [('timesheet_hours_total', '=', 0)]}">
+                    <group>
+                        <field name="timesheet_hours_total" widget="float_time"/>
+                        <field name="timesheet_days_total"/>
+                    </group>
+                    <group>
+                        <button name="action_view_timesheets" 
+                                string="View Timesheets" 
+                                type="object"
+                                class="btn-link"
+                                icon="fa-clock-o"/>
+                    </group>
+                </group>
+            </xpath>
+            
+        </field>
+    </record>
+    
+    <!-- Add columns to Sale Order Line tree view -->
+    <record id="view_order_line_tree_inherit_harvest" model="ir.ui.view">
+        <field name="name">sale.order.line.tree.inherit.harvest</field>
+        <field name="model">sale.order.line</field>
+        <field name="inherit_id" ref="sale.view_order_line_tree"/>
+        <field name="arch" type="xml">
+            
+            <!-- Add timesheet hours and days columns -->
+            <xpath expr="//field[@name='qty_delivered']" position="after">
+                <field name="timesheet_hours" 
+                       string="TS Hours" 
+                       widget="float_time"
+                       optional="hide"
+                       attrs="{'column_invisible': [('parent.timesheet_hours_total', '=', 0)]}"/>
+                <field name="timesheet_days" 
+                       string="TS Days"
+                       optional="show"
+                       attrs="{'column_invisible': [('parent.timesheet_hours_total', '=', 0)]}"/>
+            </xpath>
+            
+        </field>
+    </record>
+    
+    <!-- Smart Button for Timesheets -->
+    <record id="view_order_form_inherit_harvest_smart_button" model="ir.ui.view">
+        <field name="name">sale.order.form.inherit.harvest.smart</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_timesheets" 
+                        type="object" 
+                        class="oe_stat_button" 
+                        icon="fa-clock-o"
+                        attrs="{'invisible': [('timesheet_hours_total', '=', 0)]}">
+                    <div class="o_field_widget o_stat_info">
+                        <span class="o_stat_value">
+                            <field name="timesheet_hours_total" widget="float_time"/> Hours
+                        </span>
+                        <span class="o_stat_text">Timesheets</span>
+                    </div>
+                </button>
+            </xpath>
+            
+        </field>
+    </record>
+
+</odoo>
